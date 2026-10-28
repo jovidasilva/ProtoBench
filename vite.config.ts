@@ -12,8 +12,8 @@ export default defineConfig({
         short_name: 'ProtoBench',
         description: 'Montador e simulador de circuitos em placa perfurada, protoboard e Arduino.',
         lang: 'pt-BR',
-        theme_color: '#a8621f',
-        background_color: '#f4efe6',
+        theme_color: '#5b3fe0',
+        background_color: '#0c0d17',
         display: 'standalone',
         start_url: '.',
         icons: [
