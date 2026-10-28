@@ -1,4 +1,4 @@
-# Oxyrcuits
+# ProtoBench
 
 Montador e simulador de circuitos para placa perfurada, veroboard, protoboard e Arduino/ESP32 — agora como **PWA** (instala no PC/celular e funciona offline).
 
@@ -29,8 +29,8 @@ O workflow `.github/workflows/ci.yml` roda typecheck, testes e build a cada push
 ## Onde ficam os projetos
 
 No **IndexedDB** do navegador (`idb-keyval`), com pedido de armazenamento persistente. Um rascunho vai para o `localStorage` se a aba fechar
-no meio de um salvamento e é recuperado na próxima abertura. Projetos da versão antiga (artifact, chaves `oxy.*`) são migrados sozinhos.
-Use **Projetos → Exportar** para backup em `.oxyrcuits.json`.
+no meio de um salvamento e é recuperado na próxima abertura.
+Use **Projetos → Exportar** para backup em `.protobench.json`.
 
 ## Estrutura
 

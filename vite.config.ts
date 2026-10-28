@@ -8,8 +8,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Oxyrcuits',
-        short_name: 'Oxyrcuits',
+        name: 'ProtoBench',
+        short_name: 'ProtoBench',
         description: 'Montador e simulador de circuitos em placa perfurada, protoboard e Arduino.',
         lang: 'pt-BR',
         theme_color: '#a8621f',

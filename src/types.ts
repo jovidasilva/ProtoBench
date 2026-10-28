@@ -1,4 +1,4 @@
-// Modelo de dados do projeto (formato v3, é o que vai no IndexedDB e no .oxyrcuits.json).
+// Modelo de dados do projeto (formato v3, é o que vai no IndexedDB e no .protobench.json).
 export type Hole = [c: number, r: number];
 
 export interface Board {

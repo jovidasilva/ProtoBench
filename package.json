@@ -1,5 +1,5 @@
 {
-  "name": "oxyrcuits",
+  "name": "protobench",
   "version": "1.0.0",
   "description": "Montador e simulador de circuitos (placa perfurada, protoboard, Arduino) — PWA",
   "scripts": {

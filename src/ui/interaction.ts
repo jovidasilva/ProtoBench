@@ -18,24 +18,7 @@ export function restore(json) { app.S = JSON.parse(json); app.selected = null; a
 export function undo() { if (!app.undoStack.length) return; app.redoStack.push(snapshot()); restore(app.undoStack.pop()); }
 export function redo() { if (!app.redoStack.length) return; app.undoStack.push(snapshot()); restore(app.redoStack.pop()); }
 
-// v2 tinha uma única placa (S.board) e um único microcontrolador (S.mcu): vira uma bancada com objetos.
-export function migrateV2(o) {
-  const s = emptyState(), dx = 2, dy = 3; s.nextId = Math.max(o.nextId || 1, 1);
-  const b = Object.assign(boardDefault(), o.board || {}); b.id = s.nextId++; b.x = dx; b.y = dy; b.name = BPREFIX[b.kind] + '1'; s.boards.push(b);
-  const sh = p => [p[0] + dx, p[1] + dy];
-  s.comps = (o.comps || []).map(c => Object.assign({}, c, { c: c.c + dx, r: c.r + dy }));
-  s.traces = (o.traces || []).map(t => Object.assign({}, t, { pts: t.pts.map(sh) }));
-  s.solder = (o.solder || []).map(sh); s.cuts = (o.cuts || []).map(sh); s.labels = (o.labels || []).map(l => ({ h: sh(l.h), name: l.name }));
-  let mid = null;
-  if (o.mcu) { const [w] = boardDims(b); mid = s.nextId++; s.mcus.push({ id: mid, type: o.mcu.type, name: o.mcu.name || MCU[o.mcu.type].label, pins: o.mcu.pins || {}, x: dx + w + 4, y: dy, code: '' }); }
-  const ep = e => e.h ? { h: sh(e.h) } : e.mcu ? (mid ? { mcu: [mid, e.mcu] } : null) : e;
-  s.wires = (o.wires || []).map(w => Object.assign({}, w, { a: ep(w.a), b: ep(w.b) })).filter(w => w.a && w.b);
-  s.links = (o.links || []).map(l => ({ a: ep(l.a), b: ep(l.b) })).filter(l => l.a && l.b);
-  return s;
-}
-
 export function normalize(o) {
-  if (!o.boards) o = migrateV2(o);
   const s = Object.assign(emptyState(), o);
   for (const k of ['boards', 'mcus', 'comps', 'traces', 'wires', 'solder', 'cuts', 'labels', 'links']) if (!Array.isArray(s[k])) s[k] = [];
   s.comps = s.comps.filter(c => CT[c.type]);

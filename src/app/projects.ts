@@ -13,7 +13,7 @@ import { stopCode } from '../code/arduino';
 // Projetos ficam no IndexedDB do navegador (idb-keyval). O localStorage só guarda um rascunho de emergência no pagehide.
 export let PROJ = { id: null, name: 'Circuito sem nome' };
 
-const K_IDX = 'oxy:idx', K_LAST = 'oxy:last', K_DRAFT = 'oxy.draft', kp = id => 'oxy:p:' + id;
+const K_IDX = 'pb:idx', K_LAST = 'pb:last', K_DRAFT = 'pb:draft', kp = id => 'pb:p:' + id;
 const lget = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lset = (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } };
 const ldel = k => { try { localStorage.removeItem(k); } catch (e) {} };
@@ -23,14 +23,6 @@ export const Store = {
   async init() {
     try {
       this.idx = (await idbGet(K_IDX)) || [];
-      // migra projetos da versão artifact (localStorage oxy.*)
-      const old = JSON.parse(lget('oxy.idx') || '[]');
-      if (old.length) {
-        for (const m of old) { const st = lget('oxy.p.' + m.id); if (st && !this.idx.some(x => x.id === m.id)) { await idbSet(kp(m.id), JSON.parse(st)); this.idx.push(m); } }
-        await idbSet(K_IDX, this.idx);
-        if (lget('oxy.last') && !(await idbGet(K_LAST))) await idbSet(K_LAST, lget('oxy.last'));
-        for (const m of old) ldel('oxy.p.' + m.id); ldel('oxy.idx'); ldel('oxy.last');
-      }
       // rascunho de emergência gravado no pagehide
       const d = JSON.parse(lget(K_DRAFT) || 'null');
       if (d && d.id) { const m = this.idx.find(x => x.id === d.id); if (!m || (m.updated || 0) < d.updated) await this.save(d.id, d.name, d.state, d.updated); ldel(K_DRAFT); }
@@ -104,36 +96,21 @@ export async function renderProjects() {
 export function pmsg(t, ok) { $('pMsg').textContent = t; $('pMsg').style.color = ok ? 'var(--ok)' : 'var(--err)'; }
 
 export function exportProject(name, st) {
-  const text = JSON.stringify(Object.assign({ app: 'oxyrcuits', name }, st), null, 1);
+  const text = JSON.stringify(Object.assign({ app: 'protobench', name }, st), null, 1);
   $('jsonBox').value = text;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-  a.download = (name || 'circuito').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') + '.oxyrcuits.json';
+  a.download = (name || 'circuito').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') + '.protobench.json';
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   pmsg('Arquivo exportado.', true);
 }
 
 export function importText(text, fallbackName) {
   try {
-    const o = JSON.parse(text); if (!o || !Array.isArray(o.comps)) throw 0;
+    const o = JSON.parse(text); if (!o || !Array.isArray(o.comps) || !Array.isArray(o.boards)) throw 0;
     const name = (o.name || fallbackName || 'Projeto importado').slice(0, 60); delete o.app; delete o.name;
-    openState(o.v >= 2 ? o : migrateV1(o), { id: uid(), name }); flushSave(); $('projModal').hidden = true; say(`Projeto "${name}" importado.`);
-  } catch (e) { pmsg('Esse arquivo não é um projeto válido do Oxyrcuits.', false); }
-}
-
-export function migrateV1(o) {
-  const s = { v: 2, board: boardDefault(), comps: [], traces: [], wires: [], solder: [], cuts: [], labels: [], links: [], mcu: null, nextId: 1 };
-  s.comps = (o.comps || []).filter(c => ['res', 'led', 'npn', 'term'].includes(c.type)).map(c => {
-    if (c.type === 'npn') return { id: c.id, type: 'bjt', c: c.c, r: c.r, rot: c.rot, p: { name: c.p.name, desc: '', model: '2N2222', pinout: c.p.pinout || 'EBC' } };
-    if (c.type === 'term') return { id: c.id, type: 'term', c: c.c, r: c.r, rot: c.rot, p: Object.assign({ ways: 2, duty: 50, kind: 'res', color: 'azul', desc: '' }, c.p) };
-    if (c.type === 'led') return Object.assign({}, c, { p: Object.assign({ size: 5, desc: '' }, c.p) });
-    return Object.assign({}, c, { p: Object.assign({ desc: '' }, c.p) });
-  });
-  s.traces = (o.traces || []).map((t, i) => ({ id: t.id, tag: i + 1, pts: t.pts, color: null, name: '' }));
-  s.wires = (o.jumpers || []).map(j => ({ id: j.id, a: { h: j.a }, b: { h: j.b }, color: j.color || 'vermelho', name: '' }));
-  s.solder = (o.solder || []).map(h => [h % 24, Math.floor(h / 24)]);
-  s.nextId = o.nextId || 1000;
-  return s;
+    openState(o, { id: uid(), name }); flushSave(); $('projModal').hidden = true; say(`Projeto "${name}" importado.`);
+  } catch (e) { pmsg('Esse arquivo não é um projeto válido do ProtoBench.', false); }
 }
 
 // ════════════════════════ Exemplos ════════════════════════
@@ -418,7 +395,7 @@ export function mount() {
   $('projName').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
   window.addEventListener('pagehide', () => { if (saveTimer) { Store.draft(); flushSave(); } });
   $('pNewBoard').innerHTML = NEWBOARDS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('');
-  $('bProjects').onclick = async () => { if (saveTimer) await flushSave(); pConfirm = null; pRename = null; $('pMsg').textContent = ''; $('jsonBox').value = JSON.stringify(Object.assign({ app: 'oxyrcuits', name: PROJ.name }, app.S), null, 1); $('projModal').hidden = false; renderProjects(); };
+  $('bProjects').onclick = async () => { if (saveTimer) await flushSave(); pConfirm = null; pRename = null; $('pMsg').textContent = ''; $('jsonBox').value = JSON.stringify(Object.assign({ app: 'protobench', name: PROJ.name }, app.S), null, 1); $('projModal').hidden = false; renderProjects(); };
   $('pClose').onclick = () => { $('projModal').hidden = true; };
   $('projModal').addEventListener('click', async e => {
     if (e.target.id === 'projModal') { $('projModal').hidden = true; return; }
@@ -441,7 +418,7 @@ export function mount() {
     b.id = st.nextId++; b.x = 2; b.y = 3; b.name = BPREFIX[kind] + '1'; st.boards.push(b);
     openState(st, { id: uid(), name: 'Circuito sem nome' }); flushSave(); $('projModal').hidden = true; $('projName').focus(); $('projName').select();
   };
-  $('pImport').onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => importText(rd.result, f.name.replace(/\.json$/i, '').replace(/\.oxyrcuits$/i, '')); rd.readAsText(f); e.target.value = ''; };
+  $('pImport').onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => importText(rd.result, f.name.replace(/\.json$/i, '').replace(/\.protobench$/i, '')); rd.readAsText(f); e.target.value = ''; };
   $('mCopy').onclick = () => { const box = $('jsonBox'); navigator.clipboard.writeText(box.value).then(() => pmsg('Copiado.', true)).catch(() => { box.select(); pmsg('Texto selecionado: use Ctrl+C.', true); }); };
   $('mLoad').onclick = () => importText($('jsonBox').value, 'Projeto colado');
   $('exSel').innerHTML = '<option value="">Exemplos…</option>' + Object.entries(EXAMPLES).map(([k, e]) => `<option value="${k}">${esc(e.name.replace('Exemplo: ', ''))}</option>`).join('');
@@ -456,11 +433,7 @@ export function mount() {
     let opened = false;
     const last = await Store.getLast(), m = last && Store.index().find(x => x.id === last);
     if (m) { const st = await Store.load(last); if (st) { try { openState(st, { id: last, name: m.name }); opened = true; } catch (e) {} } }
-    if (!opened) {
-      const old = lget('bancada79.v1');
-      if (old && !lget('oxy.migrated')) { try { const st = migrateV1(JSON.parse(old)); openState(st, { id: uid(), name: 'Projeto da Bancada 7×9' }); lset('oxy.migrated', '1'); flushSave(); opened = true; } catch (e) {} }
-    }
     if (!opened) { openState(exampleState('led'), { id: null, name: EXAMPLES.led.name }); setSaveState('exemplo (edite para salvar neste navegador)'); }
-    window.__oxy = { analyze, simulate, EXAMPLES, exampleState, openState, normalize, get S() { return app.S; }, get AN() { return app.AN; }, get SIM() { return app.SIM; }, Store, ready: true };
+    window.__protobench = { analyze, simulate, EXAMPLES, exampleState, openState, normalize, get S() { return app.S; }, get AN() { return app.AN; }, get SIM() { return app.SIM; }, Store, ready: true };
   })();
 }
